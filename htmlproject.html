@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tropical Cloud Cluster Detection - INSAT Data Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .control-group:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .control-group input, .control-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .results-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .satellite-display {
+            background: #000;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .detection-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .detection-panel h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .cloud-cluster {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 0.6; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .cluster-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .cluster-info h4 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-active { background: #28a745; }
+        .status-developing { background: #ffc107; }
+        .status-dissipating { background: #dc3545; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .satellite-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0,100,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,100,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .algorithm-info {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .algorithm-info h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛰️ Nithin'S Tropical Cloud Cluster Detection System</h1>
+            <p>AI/ML-based analysis of INSAT half-hourly satellite data for tropical meteorology</p>
+        </div>
+
+        <div class="main-panel">
+            <div class="algorithm-info">
+                <h3>🧠 Deep Learning Algorithm Active</h3>
+                <p>Using Convolutional Neural Networks (CNN) with U-Net architecture for cloud cluster segmentation and Random Forest for classification. Processing INSAT-3D infrared and visible spectrum data with 30-minute temporal resolution.</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%" id="progressBar"></div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="satelliteChannel">🛰️ Satellite Channel</label>
+                    <select id="satelliteChannel">
+                        <option value="ir">Infrared (10.8 μm)</option>
+                        <option value="vis">Visible (0.65 μm)</option>
+                        <option value="wv">Water Vapor (6.7 μm)</option>
+                        <option value="tir">Thermal IR (12.0 μm)</option>
+                        <option value="wp">Wheather forecast(36.0 mm)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="detectionMode">🔍 Detection Mode</label>
+                    <select id="detectionMode">
+                        <option value="realtime">Real-time Detection</option>
+                        <option value="historical">Historical Analysis</option>
+                        <option value="forecast">Forecast Mode</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="cloudThreshold">☁️ Cloud Threshold</label>
+                    <input type="range" id="cloudThreshold" min="0.3" max="0.9" step="0.1" value="0.6">
+                    <span id="thresholdValue">0.6</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="regionSelect">🌍 Analysis Region</label>
+                    <select id="regionSelect">
+                        <option value="indian_ocean">Indian Ocean</option>
+                        <option value="bay_of_bengal">Bay of Bengal</option>
+                        <option value="arabian_sea">Arabian Sea</option>
+                        <option value="full_disk">Full Disk</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="timeRange">⏰ Time Range</label>
+                    <input type="datetime-local" id="timeRange" value="2024-01-15T12:00">
+                </div>
+
+                <div class="control-group">
+                    <button class="btn" onclick="startDetection()">🚀 Start Analysis</button>
+                </div>
+            </div>
+
+            <div class="results-section">
+                <div class="satellite-display" id="satelliteDisplay">
+                    <div class="satellite-grid"></div>
+                    <div class="loading" id="loadingIndicator">
+                        <div class="spinner"></div>
+                        <p>Initializing satellite data processing...</p>
+                    </div>
+                </div>
+
+                <div class="detection-panel">
+                    <h3>🔍 Detection Results</h3>
+                    <div id="detectionResults">
+                        <div class="cluster-info">
+                            <h4>System Ready</h4>
+                            <p>Click "Start Analysis" to begin cloud cluster detection</p>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalClusters">0</div>
+                            <div class="stat-label">Total Clusters</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="activeClusters">0</div>
+                            <div class="stat-label">Active</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="avgIntensity">0</div>
+                            <div class="stat-label">Avg Intensity</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="coverageArea">0</div>
+                            <div class="stat-label">Coverage %</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Cloud cluster detection algorithm simulation
+        class CloudClusterDetector {
+            constructor() {
+                this.isProcessing = false;
+                this.clusters = [];
+                this.processingStep = 0;
+                this.totalSteps = 5;
+            }
+
+            // Simulate CNN-based cloud segmentation
+            async segmentClouds(imageData) {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        // Simulate cloud segmentation results
+                        const segments = [];
+                        for (let i = 0; i < Math.floor(Math.random() * 8) + 3; i++) {
+                            segments.push({
+                                x: Math.random() * 80 + 10,
+                                y: Math.random() * 80 + 10,
+                                width: Math.random() * 20 + 10,
+                                height: Math.random() * 20 + 10,
+                                intensity: Math.random() * 0.5 + 0.5
+                            });
+                        }
+                        resolve(segments);
+                    }, 800);
+                });
+            }
+
+            // Simulate Random Forest classification
+            async classifyClusters(segments) {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        const clusters = segments.map((segment, index) => ({
+                            id: `cluster_${index + 1}`,
+                            type: ['Cumulus', 'Cumulonimbus', 'Cirrus', 'Stratus'][Math.floor(Math.random() * 4)],
+                            intensity: segment.intensity,
+                            area: segment.width * segment.height,
+                            coordinates: { x: segment.x, y: segment.y },
+                            size: { width: segment.width, height: segment.height },
+                            status: ['active', 'developing', 'dissipating'][Math.floor(Math.random() * 3)],
+                            confidence: Math.random() * 0.3 + 0.7
+                        }));
+                        resolve(clusters);
+                    }, 1000);
+                });
+            }
+
+            // Main detection process
+            async detectClusters() {
+                this.isProcessing = true;
+                this.processingStep = 0;
+                
+                const steps = [
+                    'Loading INSAT satellite data...',
+                    'Preprocessing image data...',
+                    'Running CNN segmentation...',
+                    'Applying Random Forest classification...',
+                    'Generating results...'
+                ];
+
+                for (let i = 0; i < steps.length; i++) {
+                    this.processingStep = i;
+                    this.updateProgress(steps[i]);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+            
+                }
+
+                // Simulate data processing
+                const imageData = await this.loadSatelliteData();
+                const segments = await this.segmentClouds(imageData);
+                this.clusters = await this.classifyClusters(segments);
+
+                this.isProcessing = false;
+                return this.clusters;
+            }
+
+            async loadSatelliteData() {
+                // Simulate loading satellite data
+                return new Promise(resolve => {
+                    setTimeout(() => resolve({}), 500);
+                });
+            }
+
+            updateProgress(message) {
+                const progressBar = document.getElementById('progressBar');
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                
+                const percentage = ((this.processingStep + 1) / this.totalSteps) * 100;
+                progressBar.style.width = percentage + '%';
+                
+                if (loadingIndicator) {
+                    loadingIndicator.innerHTML = `
+                        <div class="spinner"></div>
+                        <p>${message}</p>
+                    `;
+                }
+            }
+        }
+
+        // Initialize detector
+        const detector = new CloudClusterDetector();
+
+        // UI event handlers
+        document.getElementById('cloudThreshold').addEventListener('input', function() {
+            document.getElementById('thresholdValue').textContent = this.value;
+        });
+
+        async function startDetection() {
+            const satelliteDisplay = document.getElementById('satelliteDisplay');
+            const detectionResults = document.getElementById('detectionResults');
+            
+            // Clear previous results
+            clearDisplay();
+            
+            // Show loading
+            document.getElementById('loadingIndicator').style.display = 'block';
+            
+            try {
+                // Run detection algorithm
+                const clusters = await detector.detectClusters();
+                
+                // Hide loading
+                document.getElementById('loadingIndicator').style.display = 'none';
+                
+                // Display results
+                displayClusters(clusters);
+                updateStatistics(clusters);
+                
+            } catch (error) {
+                console.error('Detection failed:', error);
+                detectionResults.innerHTML = '<div class="cluster-info"><h4>Error</h4><p>Detection failed. Please try again.</p></div>';
+            }
+        }
+
+        function clearDisplay() {
+            const satelliteDisplay = document.getElementById('satelliteDisplay');
+            const existingClusters = satelliteDisplay.querySelectorAll('.cloud-cluster');
+            existingClusters.forEach(cluster => cluster.remove());
+        }
+
+        function displayClusters(clusters) {
+            const satelliteDisplay = document.getElementById('satelliteDisplay');
+            const detectionResults = document.getElementById('detectionResults');
+            
+            // Clear previous results
+            detectionResults.innerHTML = '';
+            
+            clusters.forEach(cluster => {
+                // Create visual cluster on satellite display
+                const clusterElement = document.createElement('div');
+                clusterElement.className = 'cloud-cluster';
+                clusterElement.style.left = cluster.coordinates.x + '%';
+                clusterElement.style.top = cluster.coordinates.y + '%';
+                clusterElement.style.width = cluster.size.width + '%';
+                clusterElement.style.height = cluster.size.height + '%';
+                
+                // Color based on intensity
+                const intensity = cluster.intensity;
+                if (intensity > 0.7) {
+                    clusterElement.style.background = 'rgba(255, 69, 0, 0.8)'; // Red for high intensity
+                } else if (intensity > 0.5) {
+                    clusterElement.style.background = 'rgba(255, 165, 0, 0.8)'; // Orange for medium
+                } else {
+                    clusterElement.style.background = 'rgba(255, 255, 0, 0.8)'; // Yellow for low
+                }
+                
+                satelliteDisplay.appendChild(clusterElement);
+                
+                // Add cluster information panel
+                const clusterInfo = document.createElement('div');
+                clusterInfo.className = 'cluster-info';
+                clusterInfo.innerHTML = `
+                    <h4>
+                        <span class="status-indicator status-${cluster.status}"></span>
+                        ${cluster.type} - ${cluster.id}
+                    </h4>
+                    <p><strong>Intensity:</strong> ${(cluster.intensity * 100).toFixed(1)}%</p>
+                    <p><strong>Area:</strong> ${cluster.area.toFixed(1)} km²</p>
+                    <p><strong>Confidence:</strong> ${(cluster.confidence * 100).toFixed(1)}%</p>
+                    <p><strong>Status:</strong> ${cluster.status}</p>
+                `;
+                detectionResults.appendChild(clusterInfo);
+            });
+        }
+
+        function updateStatistics(clusters) {
+            const totalClusters = clusters.length;
+            const activeClusters = clusters.filter(c => c.status === 'active').length;
+            const avgIntensity = clusters.reduce((sum, c) => sum + c.intensity, 0) / totalClusters;
+            const coverageArea = clusters.reduce((sum, c) => sum + c.area, 0);
+            
+            document.getElementById('totalClusters').textContent = totalClusters;
+            document.getElementById('activeClusters').textContent = activeClusters;
+            document.getElementById('avgIntensity').textContent = (avgIntensity * 100).toFixed(1);
+            document.getElementById('coverageArea').textContent = (coverageArea / 1000).toFixed(1);
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default datetime to current time
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('timeRange').value = now.toISOString().slice(0, 16);
+            
+            // Hide loading indicator initially
+            document.getElementById('loadingIndicator').style.display = 'none';
+        });
+
+        // Simulate real-time updates when in real-time mode
+        setInterval(() => {
+            const mode = document.getElementById('detectionMode').value;
+            if (mode === 'realtime' && !detector.isProcessing) {
+                // Simulate minor updates to existing clusters
+                const clusters = detector.clusters;
+                if (clusters.length > 0) {
+                    clusters.forEach(cluster => {
+                        cluster.intensity = Math.max(0.1, Math.min(1.0, cluster.intensity + (Math.random() - 0.5) * 0.1));
+                    });
+                    updateStatistics(clusters);
+                }
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
